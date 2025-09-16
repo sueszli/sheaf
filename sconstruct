@@ -65,9 +65,8 @@ env.Append(CPPPATH=[unity_src])
 # source
 # 
 
-binary = env.Program('sheaf', 'src/main.c')
-
 src_files = [f for f in Glob('src/*.c') if not str(f).endswith('main.c')]
+binary = env.Program('sheaf', ['src/main.c'] + src_files)
 test_sources = Glob('tests/*.c')
 test_programs = [
     env.Program(f'tests/{os.path.splitext(os.path.basename(str(tsrc)))[0]}', [tsrc] + src_files + [os.path.join(unity_src, 'unity.c')])

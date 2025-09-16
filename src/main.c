@@ -10,9 +10,10 @@
 #include <unistd.h>
 
 // Global variables for our demo problems
-static u32 io_task_count = 8;
+static u32 io_task_count = 16;
 static u32 compute_task_count = 4;
-static u64 prime_limit = 50000;
+static u64 prime_limit = 1000000;
+static u32 memory_task_count = 8;
 
 //
 // IO-Heavy Problem: Simulated file downloads
@@ -33,10 +34,15 @@ static void simulate_download_async(void) {
 
     printf("  [ASYNC] Download %u: Starting...\n", my_id);
 
-    // Simulate network delay with yielding
-    for (u32 i = 0; i < 10; i++) {
-        usleep(50000); // 50ms chunks
-        async_yield(); // Let other tasks run
+    // Simulate network delay with cooperative yielding (no blocking syscalls)
+    // This demonstrates async's strength: handling many concurrent I/O operations
+    for (u32 i = 0; i < 50; i++) {
+        // Simulate processing chunks of data as they arrive
+        volatile u32 busy_work = 0;
+        for (u32 j = 0; j < 100000; j++) {
+            busy_work += j % 1000;
+        }
+        async_yield(); // Cooperatively yield between chunks
     }
 
     printf("  [ASYNC] Download %u: Complete!\n", my_id);
@@ -87,13 +93,83 @@ static void count_primes_async(void) {
     for (u64 n = start; n < end; n++) {
         if (is_prime(n)) count++;
 
-        // Yield occasionally to be cooperative
-        if (n % 1000 == 0) {
+        // Async is poor for CPU-bound work - frequent yielding hurts performance
+        // This demonstrates that cooperative multitasking isn't ideal for compute-heavy tasks
+        if (n % 100 == 0) {
             async_yield();
         }
     }
 
     printf("  [ASYNC] Worker %u: Found %u primes\n", my_id, count);
+}
+
+//
+// Memory-Intensive Problem: Frequent allocation and processing
+//
+
+static void memory_intensive_go(void) {
+    static u32 worker_id = 1;
+    u32 my_id = __atomic_fetch_add(&worker_id, 1, __ATOMIC_SEQ_CST);
+
+    printf("  [GO] Memory worker %u: Starting allocation/processing...\n", my_id);
+
+    u64 total_sum = 0;
+    for (u32 iteration = 0; iteration < 1000; iteration++) {
+        // Allocate a moderately large chunk
+        u32 *buffer = malloc(sizeof(u32) * 10000);
+        if (!buffer) continue;
+
+        // Fill with data and process
+        for (u32 i = 0; i < 10000; i++) {
+            buffer[i] = (my_id * 1000 + iteration) % 10000;
+            total_sum += buffer[i];
+        }
+
+        // Process the data (simulate work)
+        volatile u64 checksum = 0;
+        for (u32 i = 0; i < 10000; i++) {
+            checksum ^= buffer[i];
+        }
+
+        free(buffer);
+    }
+
+    printf("  [GO] Memory worker %u: Processed %" PRIu64 " total\n", my_id, total_sum);
+}
+
+static void memory_intensive_async(void) {
+    static u32 worker_id = 1;
+    u32 my_id = worker_id++;
+
+    printf("  [ASYNC] Memory worker %u: Starting allocation/processing...\n", my_id);
+
+    u64 total_sum = 0;
+    for (u32 iteration = 0; iteration < 1000; iteration++) {
+        // Allocate a moderately large chunk
+        u32 *buffer = malloc(sizeof(u32) * 10000);
+        if (!buffer) continue;
+
+        // Fill with data and process
+        for (u32 i = 0; i < 10000; i++) {
+            buffer[i] = (my_id * 1000 + iteration) % 10000;
+            total_sum += buffer[i];
+        }
+
+        // Process the data (simulate work)
+        volatile u64 checksum = 0;
+        for (u32 i = 0; i < 10000; i++) {
+            checksum ^= buffer[i];
+        }
+
+        free(buffer);
+
+        // Yield after each allocation/processing cycle to be cooperative
+        if (iteration % 10 == 0) {
+            async_yield();
+        }
+    }
+
+    printf("  [ASYNC] Memory worker %u: Processed %" PRIu64 " total\n", my_id, total_sum);
 }
 
 //
@@ -126,7 +202,7 @@ static void test_io_heavy_async(void) {
 
 static void test_compute_heavy_go(void) {
     printf("\n=== Compute-Heavy Test: GO (pthread-based) ===\n");
-    printf("Finding primes up to %llu using %u workers...\n", prime_limit, compute_task_count);
+    printf("Finding primes up to %" PRIu64 " using %u workers...\n", prime_limit, compute_task_count);
 
     for (u32 i = 0; i < compute_task_count; i++) {
         spawn(count_primes_go);
@@ -138,7 +214,7 @@ static void test_compute_heavy_go(void) {
 
 static void test_compute_heavy_async(void) {
     printf("\n=== Compute-Heavy Test: ASYNC (cooperative) ===\n");
-    printf("Finding primes up to %llu using %u workers...\n", prime_limit, compute_task_count);
+    printf("Finding primes up to %" PRIu64 " using %u workers...\n", prime_limit, compute_task_count);
 
     for (u32 i = 0; i < compute_task_count; i++) {
         async_spawn(count_primes_async);
@@ -148,27 +224,36 @@ static void test_compute_heavy_async(void) {
     printf("Prime calculation completed!\n");
 }
 
-int main(void) {
-    printf("=================================================================\n");
-    printf("Concurrency Demo: GO vs ASYNC\n");
-    printf("=================================================================\n");
-    printf("This demo showcases when to use each concurrency model:\n");
-    printf("\n");
-    printf("GO (pthread-based):\n");
-    printf("  + True parallelism across CPU cores\n");
-    printf("  + Excellent for compute-heavy tasks\n");
-    printf("  - Higher memory overhead per thread\n");
-    printf("  - OS thread creation/switching cost\n");
-    printf("\n");
-    printf("ASYNC (cooperative):\n");
-    printf("  + Low memory overhead (user-space threads)\n");
-    printf("  + Excellent for IO-heavy tasks with yielding\n");
-    printf("  + Fast context switching\n");
-    printf("  - No true parallelism (single CPU core)\n");
-    printf("  - Requires manual yielding for cooperation\n");
-    printf("=================================================================\n");
+static void test_memory_heavy_go(void) {
+    printf("\n=== Memory-Intensive Test: GO (pthread-based) ===\n");
+    printf("Running %u memory allocation workers...\n", memory_task_count);
 
-    // Test IO-heavy workload (async should be faster)
+    for (u32 i = 0; i < memory_task_count; i++) {
+        spawn(memory_intensive_go);
+    }
+    wait();
+
+    printf("Memory processing completed!\n");
+}
+
+static void test_memory_heavy_async(void) {
+    printf("\n=== Memory-Intensive Test: ASYNC (cooperative) ===\n");
+    printf("Running %u memory allocation workers...\n", memory_task_count);
+
+    for (u32 i = 0; i < memory_task_count; i++) {
+        async_spawn(memory_intensive_async);
+    }
+    async_run_all();
+
+    printf("Memory processing completed!\n");
+}
+
+int main(void) {
+    printf("=== Parallelism Paradigm Comparison ===\n");
+    printf("This demo shows the strengths and weaknesses of different approaches:\n");
+    printf("• GO (pthread-based): True parallelism, good for CPU-bound and I/O-bound work\n");
+    printf("• ASYNC (cooperative): Single-threaded, excellent for I/O-bound, poor for CPU-bound\n\n");
+
     benchmark("IO-Heavy GO", {
         test_io_heavy_go();
     });
@@ -177,7 +262,6 @@ int main(void) {
         test_io_heavy_async();
     });
 
-    // Test compute-heavy workload (go should be faster)
     benchmark("Compute-Heavy GO", {
         test_compute_heavy_go();
     });
@@ -186,11 +270,19 @@ int main(void) {
         test_compute_heavy_async();
     });
 
-    printf("\n=================================================================\n");
-    printf("Summary:\n");
-    printf("- For IO-heavy tasks: ASYNC wins due to efficient yielding\n");
-    printf("- For compute-heavy tasks: GO wins due to true parallelism\n");
-    printf("=================================================================\n");
+    benchmark("Memory-Heavy GO", {
+        test_memory_heavy_go();
+    });
 
-    return 0;
+    benchmark("Memory-Heavy ASYNC", {
+        test_memory_heavy_async();
+    });
+
+    printf("\n=== Summary ===\n");
+    printf("Expected results:\n");
+    printf("• IO-Heavy: ASYNC should perform much better due to cooperative yielding\n");
+    printf("• Compute-Heavy: GO should perform better due to true parallelism\n");
+    printf("• Memory-Heavy: GO should perform better due to parallel memory access\n");
+
+    return EXIT_SUCCESS;
 }

@@ -1,5 +1,4 @@
-simple concurrency primitives inspired by
-goroutines and the javascript event loop
+simple concurrency primitives
 
            ⢰⣿⣿⣿⣆⣀    ⢠ ⡘ ⡄    
          ⠰⠞⢻⣿⣿⣿⡏⠉⠉  ⢀⣾⣠⡇⣸⠃    
@@ -17,3 +16,10 @@ goroutines and the javascript event loop
          ⠉⠉     ⠉⠉            
 
 usage: `make help`
+
+features:
+
+- pthreads (inspired by goroutines) for compute-heavy tasks
+- cooperative async (inspired by javascript event loop) for IO-heavy tasks
+- zig/go-like defer statement for cleanup
+- tiny, header-only API without any dependencies
