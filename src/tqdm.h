@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#define TQDM_BAR_WIDTH 60
+#define TQDM_BAR_WIDTH 40
 
 static struct timeval start_time = {0, 0};
 

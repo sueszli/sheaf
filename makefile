@@ -8,6 +8,10 @@ build-image:
 run: build-image
 	$(DOCKER_RUN) 'scons run && scons --clean -s'
 
+.PHONY: demo-go # run the go demo program
+demo-go: build-image
+	$(DOCKER_RUN) 'scons run_demo_go && scons --clean -s'
+
 .PHONY: test # run all tests
 test: build-image
 	$(DOCKER_RUN) 'scons test && scons --clean -s'
@@ -22,7 +26,8 @@ fmt:
 
 .PHONY: clean # remove all build artifacts
 clean:
-	docker rmi main 2>/dev/null || true
+	docker rmi sheaf 2>/dev/null || true
+	# docker system prune -a -f
 
 .PHONY: help # generate help message
 help:

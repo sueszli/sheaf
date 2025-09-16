@@ -1,37 +1,83 @@
-simple concurrency primitives
+sheaf: task dispatching made simple
 
-- pthreads (inspired by goroutines) for compute-heavy tasks
-- cooperative async (inspired by the javascript event loop) for io-heavy tasks
-- zig/go-like defer statement for cleanup (a neat way to implement RAII-like behavior in c)
+     ⣀                    ⢀⡀  
+    ⣰⣿⡆               ⣄ ⢀⣴⣿⡇  
+ ⢠⣄ ⣿⣿⡿ ⢀⡀           ⣸⣿ ⢸⣿⡿   
+ ⠈⣿⣆⠘⠟⢀⣼⣿⠁    ⢀    ⣠⡀⢹⣿⡇⠈⣁⣤⣶⠖ 
+ ⣀⠙⢿⡆⢰⣿⡿⠃    ⣰⣿⡇   ⣿⣧⠈⠏⢠⣾⠿⠿⠋  
+ ⢻⣷⡀⠁⠈⢁⣤⣶⠁⣴⡄⢸⣿⣿⡇   ⣿⣿⠂⣀⣠⣤⣤⡄
+ ⠈⢿⣿ ⣴⣿⡿⠃ ⣿⣷ ⠟⢁⣠⣶⠇ ⠈⠁⢴⣿⡿⠟⠉  
+   ⠙ ⠛⠋⠁ ⣦⠈⢿⠃⣰⣿⡿⠏  ⣾⠆    ⣴⣿ 
+    ⣿    ⣿⣷⡀ ⠋⣁⣤⡤ ⢰⡏ ⢸⣆ ⣾⣿⡿   
+    ⣿    ⢻⣿⠃⣰⣿⣿⠟ ⢀⡿  ⢿⣿⡄⠹⠛⢁⣤⡤  
+    ⣿     ⠈⡀⠛⠋⠁  ⣼⡇⢰⣆⠈⢿⠇⢠⣾⣿⠟  
+    ⣿     ⢸⠃    ⢀⣿ ⢸⣿⣆⠈ ⠋⣉⣠⡄ 
+    ⣿     ⣿     ⢸⡇ ⠘⢿⡟⢀⣶⣿⡿⠋   
+    ⢻⡆   ⢸⡏     ⣾⡇  ⢀⣀⠘⠛⠉     
+    ⠘⠓   ⠘⠃     ⠛⠁  ⠘⠋        
 
-⠀⠀⠀⠀⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀
-⠀⠀⠀⠀⣰⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣄⠀⢀⣴⣿⡇⠀⠀
-⠀⢠⣄⠀⣿⣿⡿⠀⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⣿⠀⢸⣿⡿⠀⠀⠀
-⠀⠈⣿⣆⠘⠟⢀⣼⣿⠁⠀⠀⠀⠀⢀⠀⠀⠀⠀⣠⡀⢹⣿⡇⠈⣁⣤⣶⠖⠀
-⠀⣀⠙⢿⡆⢰⣿⡿⠃⠀⠀⠀⠀⣰⣿⡇⠀⠀⠀⣿⣧⠈⠏⢠⣾⠿⠿⠋⠀⠀
-⠀⢻⣷⡀⠁⠈⢁⣤⣶⠁⣴⡄⢸⣿⣿⡇⠀⠀⠀⣿⣿⠂⣀⣠⣤⣤⡄⠀⠀⠀
-⠀⠈⢿⣿⠀⣴⣿⡿⠃⠀⣿⣷⠀⠟⢁⣠⣶⠇⠀⠈⠁⢴⣿⡿⠟⠉⠀⠀⠀⠀
-⠀⠀⠀⠙⠀⠛⠋⠁⠀⣦⠈⢿⠃⣰⣿⡿⠏⠀⠀⣾⠆⠀⠀⠀⠀⣴⣿⠀⠀⠀
-⠀⠀⠀⠀⣿⠀⠀⠀⠀⣿⣷⡀⠀⠋⣁⣤⡤⠀⢰⡏⠀⢸⣆⠀⣾⣿⡿⠀⠀⠀
-⠀⠀⠀⠀⣿⠀⠀⠀⠀⢻⣿⠃⣰⣿⣿⠟⠀⢀⡿⠀⠀⢿⣿⡄⠹⠛⢁⣤⡤⠀
-⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠈⡀⠛⠋⠁⠀⠀⣼⡇⢰⣆⠈⢿⠇⢠⣾⣿⠟⠀⠀
-⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⢸⠃⠀⠀⠀⠀⢀⣿⠀⢸⣿⣆⠈⠀⠋⣉⣠⡄⠀⠀
-⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⢸⡇⠀⠘⢿⡟⢀⣶⣿⡿⠋⠀⠀⠀
-⠀⠀⠀⠀⢻⡆⠀⠀⠀⢸⡏⠀⠀⠀⠀⠀⣾⡇⠀⠀⢀⣀⠘⠛⠉⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠘⠓⠀⠀⠀⠘⠃⠀⠀⠀⠀⠀⠛⠁⠀⠀⠘⠋⠀⠀⠀⠀⠀⠀⠀⠀
+# features
+
+a minimal, zero-dependency, proof-of-concept library for task dispatching in c:
+
+- pthreads for compute-heavy tasks, inspired by goroutines
+- cooperative async for io-heavy tasks, inspired by the javascript event loop
+- defer statement for cleanup, for simple RAII, leveraging gcc's cleanup attribute
+
+# usage
 
 ```
+$ cat src/demo_go.c
+
+    #include "defer.h"
+    #include "go.h"
+    #include "types.h"
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <unistd.h>
+
+    static void task(u32 id) {
+        usleep((u32)((rand() % 1000) * 1000));
+        printf("finished task %u\n", id);
+    }
+
+    i32 main(void) {
+        srand((u32)time(NULL));
+
+        u32 *results = malloc(4 * sizeof(u32));
+        defer({
+            free(results);
+            printf("cleaned up\n");
+        });
+
+        go({ task(1); });
+        go({ task(2); });
+        go({ task(3); });
+
+        wait();
+
+        return EXIT_SUCCESS;
+    }
+
+$ make demo-go
+
+    finished task 2
+    finished task 1
+    finished task 3
+    cleaned up
+
 $ make run
 
-IO-Bound GO: 100%|████████████████████████████████████████████████████████████| 200/200 [941.3it/s] downloads
-IO-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 200/200 [0.0it/s] downloads   
-Compute-Bound GO: 100%|████████████████████████████████████████████████████████████| 12/12 [109.5it/s] workers   
-Compute-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 12/12 [0.0it/s] workers   
-Memory-Bound GO: 100%|████████████████████████████████████████████████████████████| 32/32 [56.4it/s] workers   
-Memory-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 32/32 [32000000.0it/s] workers   
+    IO-Bound GO: 100%|████████████████████████████████████████████████████████████| 200/200 [941.3it/s] downloads
+    IO-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 200/200 [0.0it/s] downloads   
+    Compute-Bound GO: 100%|████████████████████████████████████████████████████████████| 12/12 [109.5it/s] workers   
+    Compute-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 12/12 [0.0it/s] workers   
+    Memory-Bound GO: 100%|████████████████████████████████████████████████████████████| 32/32 [56.4it/s] workers   
+    Memory-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 32/32 [32000000.0it/s] workers   
 
 
-IO-Bound:        GO in 0.235s vs ASYNC in 0.008s (28.0x faster ASYNC)
-Compute-Bound:   GO in 0.115s vs ASYNC in 0.654s (5.7x faster GO)
-Memory-Bound:    GO in 0.576s vs ASYNC in 4.581s (8.0x faster GO)
+    IO-Bound:        GO in 0.235s vs ASYNC in 0.008s (28.0x faster ASYNC)
+    Compute-Bound:   GO in 0.115s vs ASYNC in 0.654s (5.7x faster GO)
+    Memory-Bound:    GO in 0.576s vs ASYNC in 4.581s (8.0x faster GO)
 ```

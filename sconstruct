@@ -65,8 +65,9 @@ env.Append(CPPPATH=[unity_src])
 # source
 # 
 
-src_files = [f for f in Glob('src/*.c') if not str(f).endswith('main.c')]
+src_files = [f for f in Glob('src/*.c') if not str(f).endswith('main.c') and not str(f).endswith('demo_go.c')]
 binary = env.Program('sheaf', ['src/main.c'] + src_files)
+demo_binary = env.Program('demo', ['src/demo_go.c'] + src_files)
 test_sources = Glob('tests/*.c')
 test_programs = [
     env.Program(f'tests/{os.path.splitext(os.path.basename(str(tsrc)))[0]}', [tsrc] + src_files + [os.path.join(unity_src, 'unity.c')])
@@ -85,6 +86,7 @@ if platform.system() == 'Linux':
 
 # run
 run_binary = env.Command('run', binary, './$SOURCE')
+run_demo_go = env.Command('run_demo_go', demo_binary, './$SOURCE')
 
 # test
 test_commands = [env.Command(f'run_{os.path.basename(str(p))}', p, './$SOURCE') for p in test_programs]
