@@ -1,0 +1,48 @@
+import os
+from SCons.Script import ARGUMENTS, Environment, Exit
+
+env = Environment()
+
+# 
+# arguments
+# 
+
+build_tests = ARGUMENTS.get('BUILD_TESTS', 0)
+disable_asan = ARGUMENTS.get('DISABLE_ASAN', 0)
+
+# 
+# compiler config
+# 
+
+compiler_name = os.path.basename(env['CC'])
+if compiler_name not in ['gcc', 'clang']:
+    Exit("unsupported compiler: " + compiler_name)
+
+env.Append(CFLAGS=['-std=c23'])
+
+env.Tool('compilation_db')
+env.CompilationDatabase()
+
+env.Append(CFLAGS=['-g', '-O3'])
+
+if not disable_asan:
+    env.Append(CFLAGS=['-fsanitize=address'])
+    env.Append(LINKFLAGS=['-fsanitize=address'])
+
+warning_flags = [
+    '-Wall', '-Wextra', '-Wcast-qual','-Wdisabled-optimization','-Wformat=2','-Winit-self','-Wlogical-op','-Wmissing-include-dirs','-Wredundant-decls','-Wstrict-overflow=5','-Wundef','-Wuninitialized','-Wwrite-strings','-Wpointer-arith','-Wstrict-prototypes','-Wconversion','-Wsign-conversion','-Wbad-function-cast','-Wjump-misses-init','-Wold-style-definition','-Wmissing-parameter-type','-Wempty-body','-Wtype-limits','-Wclobbered','-Wunused-but-set-parameter','-Wunused-but-set-variable','-Wmaybe-uninitialized','-Wstack-protector','-fstack-protector-strong','-fno-common','-Wformat-security','-Wno-implicit-function-declaration',
+    # '-Wpedantic', '-Wmissing-prototypes', '-Wtrampolines', '-Wshadow','-Wcast-align',
+]
+env.Append(CFLAGS=warning_flags)
+
+if compiler_name == 'gcc':
+    env.Append(CFLAGS=['-Wduplicated-cond', '-Wduplicated-branches', '-Wnull-dereference', '-Walloc-zero', '-Walloca', '-Wstringop-overflow=4', '-Warray-bounds=2'])
+
+if compiler_name == 'clang':
+    env.Append(CFLAGS=['-Wcomma','-Wloop-analysis','-Wshift-sign-overflow','-Wconditional-uninitialized','-Wdocumentation'])
+
+# 
+# source
+# 
+
+env.Program('sheaf', 'src/main.c')
