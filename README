@@ -16,13 +16,4 @@ goroutines and the javascript event loop
          ⣾⣿⠃   ⠘⣿⣿⣾⠃          
          ⠉⠉     ⠉⠉            
 
-usage:
-
-```
-scons run        # build and run the main binary
-scons test       # build and run all tests
-scons valgrind   # build and run the main binary under a memcheck
-
-scons fmt        # format all source files with clang-format
-scons --clean    # clean all build artifacts
-```
+usage: `make help`
