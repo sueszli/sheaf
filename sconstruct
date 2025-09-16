@@ -8,8 +8,8 @@ env.Tool('compilation_db')
 env.CompilationDatabase()
 
 # 
-# compiler config
-# 
+# compiler hardening
+#
 
 if 'CC' not in env:
     detected_cc = env.Detect(['clang', 'gcc'])
