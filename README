@@ -67,17 +67,38 @@ $ make demo-go
     finished task 3
     cleaned up
 
-$ make run
+$ cat src/demo_async.c
 
-    IO-Bound GO: 100%|████████████████████████████████████████████████████████████| 200/200 [941.3it/s] downloads
-    IO-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 200/200 [0.0it/s] downloads   
-    Compute-Bound GO: 100%|████████████████████████████████████████████████████████████| 12/12 [109.5it/s] workers   
-    Compute-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 12/12 [0.0it/s] workers   
-    Memory-Bound GO: 100%|████████████████████████████████████████████████████████████| 32/32 [56.4it/s] workers   
-    Memory-Bound ASYNC: 100%|████████████████████████████████████████████████████████████| 32/32 [32000000.0it/s] workers   
+    #include "async.h"
+    #include "types.h"
+    #include <stdio.h>
+    #include <stdlib.h>
 
+    static void ping(void) {
+        for (u8 i = 0; i < 2; i++) {
+            printf("ping\n");
+            async_yield();
+        }
+    }
 
-    IO-Bound:        GO in 0.235s vs ASYNC in 0.008s (28.0x faster ASYNC)
-    Compute-Bound:   GO in 0.115s vs ASYNC in 0.654s (5.7x faster GO)
-    Memory-Bound:    GO in 0.576s vs ASYNC in 4.581s (8.0x faster GO)
+    static void pong(void) {
+        for (u8 i = 0; i < 2; i++) {
+            printf("pong\n");
+            async_yield();
+        }
+    }
+
+    i32 main(void) {
+        async_spawn(ping);
+        async_spawn(pong);
+        async_run_all();
+        return EXIT_SUCCESS;
+    }
+
+$ make demo-async
+
+    ping
+    pong
+    ping
+    pong
 ```

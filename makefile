@@ -12,6 +12,10 @@ run: build-image
 demo-go: build-image
 	$(DOCKER_RUN) 'scons run_demo_go && scons --clean -s'
 
+.PHONY: demo-async # run the async demo program
+demo-async: build-image
+	$(DOCKER_RUN) 'scons run_demo_async && scons --clean -s'
+
 .PHONY: test # run all tests
 test: build-image
 	$(DOCKER_RUN) 'scons test && scons --clean -s'
@@ -32,4 +36,4 @@ clean:
 .PHONY: help # generate help message
 help:
 	@echo "Usage: make [target]\n"
-	@grep '^.PHONY: .* #' makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1	\2/' | expand -t20
+	@grep '^.PHONY: .* #' makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t20
