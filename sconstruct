@@ -30,15 +30,20 @@ if valgrind_mode:
     # valgrind mode: no optimization, no sanitizers
     env.Append(CFLAGS=['-g', '-O0'])
 else:
-    # normal mode: optimization + AddressSanitizer
+    # normal mode: optimization + multiple sanitizers
     env.Append(CFLAGS=['-g', '-O3'])
     env.Append(CFLAGS=['-fsanitize=address'])
     env.Append(LINKFLAGS=['-fsanitize=address'])
+    env.Append(CFLAGS=['-fsanitize=undefined'])
+    env.Append(LINKFLAGS=['-fsanitize=undefined'])
+    env.Append(CFLAGS=['-fstack-protector-strong'])
+    env.Append(CFLAGS=['-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2'])
+    if platform.system() == 'Darwin': # weird quirk
+        env.Append(ENV={'MallocNanoZone': '0'})
 
-warning_flags = [
+env.Append(CFLAGS=[
     '-Wall', '-Wextra', '-Wcast-qual','-Wdisabled-optimization','-Wformat=2','-Winit-self','-Wmissing-include-dirs','-Wredundant-decls','-Wstrict-overflow=5','-Wundef','-Wuninitialized','-Wwrite-strings','-Wpointer-arith','-Wstrict-prototypes','-Wconversion','-Wsign-conversion','-Wbad-function-cast','-Wold-style-definition','-Wempty-body','-Wtype-limits','-Wunused-but-set-parameter','-Wunused-but-set-variable','-Wstack-protector','-fstack-protector-strong','-fno-common','-Wformat-security','-Wno-implicit-function-declaration'
-]
-env.Append(CFLAGS=warning_flags)
+])
 
 if compiler_name == 'gcc':
     env.Append(CFLAGS=['-Wlogical-op', '-Wjump-misses-init', '-Wmissing-parameter-type', '-Wclobbered', '-Wmaybe-uninitialized', '-Wduplicated-cond', '-Wduplicated-branches', '-Wnull-dereference', '-Walloc-zero', '-Walloca', '-Wstringop-overflow=4', '-Warray-bounds=2'])
