@@ -5,19 +5,19 @@ build-image:
 	docker build -t sheaf .
 
 .PHONY: run # run the main program
-run: build-image
+run:
 	$(DOCKER_RUN) 'scons run && scons --clean -s'
 
 .PHONY: test # run all tests
-test: build-image
+test:
 	$(DOCKER_RUN) 'scons test && scons --clean -s'
 
 .PHONY: valgrind # run the main program under valgrind
-valgrind: build-image
+valgrind:
 	$(DOCKER_RUN) 'scons valgrind && scons --clean -s'
 
 .PHONY: fmt # format all source files
-fmt: build-image
+fmt:
 	$(DOCKER_RUN) 'find . -name "*.c" -o -name "*.h" | xargs clang-format -i'
 
 .PHONY: clean # remove all build artifacts
