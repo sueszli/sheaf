@@ -2,7 +2,7 @@ simple concurrency primitives
 
 - pthreads (inspired by goroutines) for compute-heavy tasks
 - cooperative async (inspired by the javascript event loop) for io-heavy tasks
-- zig/go-like defer statement for cleanup
+- zig/go-like defer statement for cleanup (a neat way to implement RAII-like behavior in C)
 
 ⠀⠀⠀⠀⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀
 ⠀⠀⠀⠀⣰⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣄⠀⢀⣴⣿⡇⠀⠀
