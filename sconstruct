@@ -1,5 +1,6 @@
 import platform
 import subprocess
+import os
 from SCons.Script import ARGUMENTS, Environment, Exit
 
 env = Environment()
@@ -15,6 +16,12 @@ valgrind_mode = ARGUMENTS.get('VALGRIND', 0)
 # 
 # compiler config
 # 
+
+if 'CC' not in env:
+    detected_cc = env.Detect(['clang', 'gcc'])
+    if not detected_cc:
+        Exit("No supported compiler (clang/gcc) detected")
+    env['CC'] = detected_cc
 
 version_output = subprocess.check_output([env['CC'], '--version'], universal_newlines=True)
 if 'clang' in version_output.lower():
@@ -52,18 +59,45 @@ if compiler_name == 'clang':
     env.Append(CFLAGS=['-Wcomma','-Wloop-analysis','-Wshift-sign-overflow','-Wconditional-uninitialized','-Wdocumentation'])
 
 # 
-# build targets
+# dependencies
+# 
+
+unity_dir = 'unity'
+if not os.path.exists(unity_dir):
+    unity_repo = 'https://github.com/ThrowTheSwitch/Unity.git'
+    unity_tag = 'v2.6.1'
+    subprocess.run(['git', 'clone', '--branch', unity_tag, '--depth', '1', unity_repo, unity_dir], check=True)
+unity_src = os.path.join(unity_dir, 'src')
+env.Append(CPPPATH=[unity_src])
+
+# 
+# source
 # 
 
 binary = env.Program('binary', 'src/main.c')
+
+# 
+# tests
+# 
+
+test_sources = Glob('tests/*.c')
+test_programs = [
+    env.Program(f'tests/{os.path.splitext(os.path.basename(str(tsrc)))[0]}', [tsrc] + [os.path.join(unity_src, 'unity.c')])
+    for tsrc in test_sources
+]
 
 #
 # execution
 #
 
-if valgrind_mode and platform.system() == 'Darwin':
-    leaks_run = env.Command('valgrind', binary, 'MallocStackLogging=1 leaks --atExit -- ./$SOURCE')
-elif valgrind_mode and platform.system() == 'Linux':
-    valgrind_run = env.Command('valgrind', binary, 'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
+if valgrind_mode:
+    if platform.system() == 'Darwin':
+        leaks_run = env.Command('valgrind', binary, 'MallocStackLogging=1 leaks --atExit -- ./$SOURCE')
+    if platform.system() == 'Linux':
+        valgrind_run = env.Command('valgrind', binary, 'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
+
 else:
     run_binary = env.Command('run', binary, './$SOURCE')
+
+    test_commands = [env.Command(f'run_{os.path.basename(str(p))}', p, './$SOURCE') for p in test_programs]
+    env.Alias('test', test_commands)

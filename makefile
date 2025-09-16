@@ -5,16 +5,15 @@ run:
 	scons -j$$(nproc) run
 	@scons -c -s
 
-.PHONY: memcheck
-memcheck:
-	scons -j$$(nproc)
-	scons VALGRIND=1 valgrind
+.PHONY: test
+test:
+	scons -j$$(nproc) test
 	@scons -c -s
 
-# .PHONY: test
-# test:
-# 	$(DOCKER_RUN) 'rm -rf build && mkdir -p build && cd build && cmake -DBUILD_TESTS=ON .. && cmake --build . -j$$(nproc)'
-# 	$(DOCKER_RUN) 'cd build && ctest --verbose'
+.PHONY: memcheck
+memcheck:
+	scons -j$$(nproc) VALGRIND=1 valgrind
+	@scons -c -s
 
 .PHONY: fmt
 fmt:
