@@ -2,8 +2,7 @@ DOCKER_RUN = docker run --rm -v $(PWD):/workspace main sh -c
 
 .PHONY: run
 run:
-	scons -j$$(nproc)
-	./binary
+	scons -j$$(nproc) run
 	@scons -c -s
 
 .PHONY: valgrind

@@ -1,3 +1,4 @@
+import platform
 import subprocess
 from SCons.Script import ARGUMENTS, Environment, Exit
 
@@ -47,21 +48,21 @@ if compiler_name == 'clang':
     env.Append(CFLAGS=['-Wcomma','-Wloop-analysis','-Wshift-sign-overflow','-Wconditional-uninitialized','-Wdocumentation'])
 
 # 
-# source
+# build targets
 # 
 
 binary = env.Program('binary', 'src/main.c')
 
 #
-# memory checking targets
+# execution
 #
 
 if valgrind_mode:
-    # Use macOS leaks tool instead of valgrind on Darwin
-    import platform
     if platform.system() == 'Darwin':
-        leaks_run = env.Command('valgrind', binary,
-            'echo "Running binary with leak detection..." && MallocStackLogging=1 ./$SOURCE')
+        leaks_run = env.Command('valgrind', binary, 'MallocStackLogging=1 leaks --atExit -- ./$SOURCE')
+    elif platform.system() == 'Linux':
+        valgrind_run = env.Command('valgrind', binary, 'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
     else:
-        valgrind_run = env.Command('valgrind', binary,
-            'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
+        Exit("unsupported platform")
+else:
+    run_binary = env.Command('run', binary, './$SOURCE')
