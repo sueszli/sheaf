@@ -101,11 +101,4 @@ $ make demo-async
     pong
     ping
     pong
-
-$ make run
-
-    go   : 100%|████████████████████████████████████████| 12/12 workers
-    async: 100%|████████████████████████████████████████| 12/12 workers   
-    results: go in 0.108s vs async in 0.668s (6.2x faster go)
-
 ```
