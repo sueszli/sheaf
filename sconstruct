@@ -45,4 +45,4 @@ if compiler_name == 'clang':
 # source
 # 
 
-env.Program('sheaf', 'src/main.c')
+env.Program('binary', 'src/main.c')

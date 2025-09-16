@@ -15,9 +15,3 @@ goroutines and javascript event loops
          ⢸⣿⡟   ⢿⣿⣧⢠⡏          
          ⣾⣿⠃   ⠘⣿⣿⣾⠃          
          ⠉⠉     ⠉⠉            
-
-usage:
-
-```
-scons && ./sheaf && scons -c
-```
