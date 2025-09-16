@@ -36,8 +36,7 @@ else:
     env.Append(LINKFLAGS=['-fsanitize=address'])
 
 warning_flags = [
-    '-Wall', '-Wextra', '-Wcast-qual','-Wdisabled-optimization','-Wformat=2','-Winit-self','-Wmissing-include-dirs','-Wredundant-decls','-Wstrict-overflow=5','-Wundef','-Wuninitialized','-Wwrite-strings','-Wpointer-arith','-Wstrict-prototypes','-Wconversion','-Wsign-conversion','-Wbad-function-cast','-Wold-style-definition','-Wempty-body','-Wtype-limits','-Wunused-but-set-parameter','-Wunused-but-set-variable','-Wstack-protector','-fstack-protector-strong','-fno-common','-Wformat-security','-Wno-implicit-function-declaration',
-    # '-Wpedantic', '-Wmissing-prototypes', '-Wtrampolines', '-Wshadow','-Wcast-align',
+    '-Wall', '-Wextra', '-Wcast-qual','-Wdisabled-optimization','-Wformat=2','-Winit-self','-Wmissing-include-dirs','-Wredundant-decls','-Wstrict-overflow=5','-Wundef','-Wuninitialized','-Wwrite-strings','-Wpointer-arith','-Wstrict-prototypes','-Wconversion','-Wsign-conversion','-Wbad-function-cast','-Wold-style-definition','-Wempty-body','-Wtype-limits','-Wunused-but-set-parameter','-Wunused-but-set-variable','-Wstack-protector','-fstack-protector-strong','-fno-common','-Wformat-security','-Wno-implicit-function-declaration'
 ]
 env.Append(CFLAGS=warning_flags)
 
@@ -57,12 +56,9 @@ binary = env.Program('binary', 'src/main.c')
 # execution
 #
 
-if valgrind_mode:
-    if platform.system() == 'Darwin':
-        leaks_run = env.Command('valgrind', binary, 'MallocStackLogging=1 leaks --atExit -- ./$SOURCE')
-    elif platform.system() == 'Linux':
-        valgrind_run = env.Command('valgrind', binary, 'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
-    else:
-        Exit("unsupported platform")
+if valgrind_mode and platform.system() == 'Darwin':
+    leaks_run = env.Command('valgrind', binary, 'MallocStackLogging=1 leaks --atExit -- ./$SOURCE')
+elif valgrind_mode and platform.system() == 'Linux':
+    valgrind_run = env.Command('valgrind', binary, 'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
 else:
     run_binary = env.Command('run', binary, './$SOURCE')

@@ -5,8 +5,8 @@ run:
 	scons -j$$(nproc) run
 	@scons -c -s
 
-.PHONY: valgrind
-valgrind:
+.PHONY: memcheck
+memcheck:
 	scons -j$$(nproc)
 	scons VALGRIND=1 valgrind
 	@scons -c -s
