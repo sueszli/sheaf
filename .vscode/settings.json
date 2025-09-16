@@ -3,7 +3,8 @@
     "files.associations": {
         "unity.h": "c",
         "types.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "unistd.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
