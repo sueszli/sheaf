@@ -1,5 +1,8 @@
 simple concurrency primitives
-as a proof of concept
+
+- pthreads (inspired by goroutines) for compute-heavy tasks
+- cooperative async (inspired by the javascript event loop) for io-heavy tasks
+- zig/go-like defer statement for cleanup
 
 ⠀⠀⠀⠀⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀
 ⠀⠀⠀⠀⣰⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣄⠀⢀⣴⣿⡇⠀⠀
@@ -32,9 +35,3 @@ IO-Bound:        GO in 0.235s vs ASYNC in 0.008s (28.0x faster ASYNC)
 Compute-Bound:   GO in 0.115s vs ASYNC in 0.654s (5.7x faster GO)
 Memory-Bound:    GO in 0.576s vs ASYNC in 4.581s (8.0x faster GO)
 ```
-
-features:
-
-- pthreads (inspired by goroutines) for compute-heavy tasks
-- cooperative async (inspired by javascript event loop) for IO-heavy tasks
-- zig/go-like defer statement for cleanup
