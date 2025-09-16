@@ -4,12 +4,13 @@ DOCKER_RUN = docker run --rm -v $(PWD):/workspace main sh -c
 run:
 	scons -j$$(nproc)
 	./binary
-	scons -c
+	@scons -c -s
 
-# .PHONY: memcheck
-# memcheck:
-# 	$(DOCKER_RUN) 'rm -rf build && mkdir -p build && cd build && cmake -DDISABLE_ASAN=ON .. && cmake --build . -j$$(nproc)'
-# 	$(DOCKER_RUN) 'cd build && valgrind --leak-check=full ./binary'
+.PHONY: valgrind
+valgrind:
+	scons -j$$(nproc)
+	scons VALGRIND=1 valgrind
+	@scons -c -s
 
 # .PHONY: test
 # test:

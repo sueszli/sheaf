@@ -5,11 +5,11 @@ env = Environment()
 env.Tool('compilation_db')
 env.CompilationDatabase()
 
-# 
+#
 # arguments
-# 
+#
 
-disable_asan = ARGUMENTS.get('DISABLE_ASAN', 0)
+valgrind_mode = ARGUMENTS.get('VALGRIND', 0)
 
 # 
 # compiler config
@@ -24,9 +24,13 @@ else:
     Exit("unsupported compiler")
 
 env.Append(CFLAGS=['-std=c23'])
-env.Append(CFLAGS=['-g', '-O3'])
 
-if not disable_asan:
+if valgrind_mode:
+    # valgrind mode: no optimization, no sanitizers
+    env.Append(CFLAGS=['-g', '-O0'])
+else:
+    # normal mode: optimization + AddressSanitizer
+    env.Append(CFLAGS=['-g', '-O3'])
     env.Append(CFLAGS=['-fsanitize=address'])
     env.Append(LINKFLAGS=['-fsanitize=address'])
 
@@ -46,4 +50,18 @@ if compiler_name == 'clang':
 # source
 # 
 
-env.Program('binary', 'src/main.c')
+binary = env.Program('binary', 'src/main.c')
+
+#
+# memory checking targets
+#
+
+if valgrind_mode:
+    # Use macOS leaks tool instead of valgrind on Darwin
+    import platform
+    if platform.system() == 'Darwin':
+        leaks_run = env.Command('valgrind', binary,
+            'echo "Running binary with leak detection..." && MallocStackLogging=1 ./$SOURCE')
+    else:
+        valgrind_run = env.Command('valgrind', binary,
+            'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
