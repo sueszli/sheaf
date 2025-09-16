@@ -1,6 +1,7 @@
 #include "async.h"
 #include "benchmark.h"
 #include "go.h"
+#include "tqdm.h"
 #include "types.h"
 
 #include <inttypes.h>
@@ -9,43 +10,42 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-// Global variables for our demo problems
-static u32 io_task_count = 16;
-static u32 compute_task_count = 4;
-static u64 prime_limit = 1000000;
-static u32 memory_task_count = 8;
+// Global variables for our demo problems - optimized for dramatic differences
+static u32 io_task_count = 200;           // Many concurrent I/O operations (under thread limit)
+static u32 compute_task_count = 12;       // More CPU-bound work across cores
+static u64 prime_limit = 10000000;        // More intensive computation
+static u32 memory_task_count = 32;        // More memory-intensive parallel work
+
+// Shared progress counters (thread-safe)
+static volatile u32 io_progress_go = 0;
+static volatile u32 io_progress_async = 0;
+static volatile u32 compute_progress_go = 0;
+static volatile u32 compute_progress_async = 0;
+static volatile u32 memory_progress_go = 0;
+static volatile u32 memory_progress_async = 0;
 
 //
 // IO-Heavy Problem: Simulated file downloads
 //
 
 static void simulate_download_go(void) {
-    static u32 download_id = 1;
-    u32 my_id = __atomic_fetch_add(&download_id, 1, __ATOMIC_SEQ_CST);
-
-    printf("  [GO] Download %u: Starting...\n", my_id);
-    usleep(500000); // 500ms simulated network delay
-    printf("  [GO] Download %u: Complete!\n", my_id);
+    // Each thread blocks - creating 1000 threads will be extremely slow
+    usleep(100000); // 100ms simulated network delay (blocking I/O)
+    __atomic_fetch_add(&io_progress_go, 1, __ATOMIC_SEQ_CST);
 }
 
 static void simulate_download_async(void) {
-    static u32 download_id = 1;
-    u32 my_id = download_id++;
+    // Simulate async I/O - yield immediately to simulate non-blocking I/O
+    // This allows other tasks to run while "waiting" for I/O completion
+    async_yield(); // Simulate async I/O operation that doesn't block
 
-    printf("  [ASYNC] Download %u: Starting...\n", my_id);
-
-    // Simulate network delay with cooperative yielding (no blocking syscalls)
-    // This demonstrates async's strength: handling many concurrent I/O operations
-    for (u32 i = 0; i < 50; i++) {
-        // Simulate processing chunks of data as they arrive
-        volatile u32 busy_work = 0;
-        for (u32 j = 0; j < 100000; j++) {
-            busy_work += j % 1000;
-        }
-        async_yield(); // Cooperatively yield between chunks
+    // Minimal processing to simulate parsing downloaded data
+    volatile u32 data_processed = 0;
+    for (u32 i = 0; i < 1000; i++) {
+        data_processed += i % 100;
     }
 
-    printf("  [ASYNC] Download %u: Complete!\n", my_id);
+    __atomic_fetch_add(&io_progress_async, 1, __ATOMIC_SEQ_CST);
 }
 
 //
@@ -71,36 +71,32 @@ static void count_primes_go(void) {
     u64 end = my_id * (prime_limit / compute_task_count);
     u32 count = 0;
 
-    printf("  [GO] Worker %u: Checking primes from %" PRIu64 " to %" PRIu64 "...\n", my_id, start, end);
-
     for (u64 n = start; n < end; n++) {
         if (is_prime(n)) count++;
     }
 
-    printf("  [GO] Worker %u: Found %u primes\n", my_id, count);
+    __atomic_fetch_add(&compute_progress_go, 1, __ATOMIC_SEQ_CST);
 }
 
 static void count_primes_async(void) {
     static u32 worker_id = 1;
-    u32 my_id = worker_id++;
+    u32 my_id = __atomic_fetch_add(&worker_id, 1, __ATOMIC_SEQ_CST);
 
     u64 start = (my_id - 1) * (prime_limit / compute_task_count);
     u64 end = my_id * (prime_limit / compute_task_count);
     u32 count = 0;
 
-    printf("  [ASYNC] Worker %u: Checking primes from %" PRIu64 " to %" PRIu64 "...\n", my_id, start, end);
-
     for (u64 n = start; n < end; n++) {
         if (is_prime(n)) count++;
 
-        // Async is poor for CPU-bound work - frequent yielding hurts performance
-        // This demonstrates that cooperative multitasking isn't ideal for compute-heavy tasks
-        if (n % 100 == 0) {
+        // Occasional yielding to allow other tasks to run
+        // Much less frequent than before to maintain performance
+        if (n % 50000 == 0) {
             async_yield();
         }
     }
 
-    printf("  [ASYNC] Worker %u: Found %u primes\n", my_id, count);
+    __atomic_fetch_add(&compute_progress_async, 1, __ATOMIC_SEQ_CST);
 }
 
 //
@@ -108,68 +104,58 @@ static void count_primes_async(void) {
 //
 
 static void memory_intensive_go(void) {
-    static u32 worker_id = 1;
-    u32 my_id = __atomic_fetch_add(&worker_id, 1, __ATOMIC_SEQ_CST);
-
-    printf("  [GO] Memory worker %u: Starting allocation/processing...\n", my_id);
-
     u64 total_sum = 0;
     for (u32 iteration = 0; iteration < 1000; iteration++) {
-        // Allocate a moderately large chunk
-        u32 *buffer = malloc(sizeof(u32) * 10000);
+        // Large allocations that benefit greatly from parallel processing
+        u32 *buffer = malloc(sizeof(u32) * 15000);
         if (!buffer) continue;
 
-        // Fill with data and process
-        for (u32 i = 0; i < 10000; i++) {
-            buffer[i] = (my_id * 1000 + iteration) % 10000;
+        // Memory operations that can run in parallel across cores
+        for (u32 i = 0; i < 15000; i++) {
+            buffer[i] = (iteration * i) % 15000;
             total_sum += buffer[i];
         }
 
-        // Process the data (simulate work)
+        // Memory-intensive processing with true parallelism
         volatile u64 checksum = 0;
-        for (u32 i = 0; i < 10000; i++) {
-            checksum ^= buffer[i];
+        for (u32 i = 0; i < 15000; i++) {
+            checksum ^= buffer[i] * buffer[(i + 1) % 15000];
         }
 
         free(buffer);
     }
 
-    printf("  [GO] Memory worker %u: Processed %" PRIu64 " total\n", my_id, total_sum);
+    __atomic_fetch_add(&memory_progress_go, 1, __ATOMIC_SEQ_CST);
 }
 
 static void memory_intensive_async(void) {
-    static u32 worker_id = 1;
-    u32 my_id = worker_id++;
-
-    printf("  [ASYNC] Memory worker %u: Starting allocation/processing...\n", my_id);
-
     u64 total_sum = 0;
     for (u32 iteration = 0; iteration < 1000; iteration++) {
-        // Allocate a moderately large chunk
-        u32 *buffer = malloc(sizeof(u32) * 10000);
+        // Same allocation size and work as GO version
+        u32 *buffer = malloc(sizeof(u32) * 15000);
         if (!buffer) continue;
 
-        // Fill with data and process
-        for (u32 i = 0; i < 10000; i++) {
-            buffer[i] = (my_id * 1000 + iteration) % 10000;
+        // Memory operations - same work as GO version
+        for (u32 i = 0; i < 15000; i++) {
+            buffer[i] = (iteration * i) % 15000;
             total_sum += buffer[i];
         }
 
-        // Process the data (simulate work)
+        // Memory-intensive processing
         volatile u64 checksum = 0;
-        for (u32 i = 0; i < 10000; i++) {
-            checksum ^= buffer[i];
+        for (u32 i = 0; i < 15000; i++) {
+            checksum ^= buffer[i] * buffer[(i + 1) % 15000];
         }
 
         free(buffer);
 
-        // Yield after each allocation/processing cycle to be cooperative
-        if (iteration % 10 == 0) {
+        // Less frequent yielding to maintain better performance
+        if (iteration % 100 == 0) {
             async_yield();
         }
     }
 
-    printf("  [ASYNC] Memory worker %u: Processed %" PRIu64 " total\n", my_id, total_sum);
+    __atomic_fetch_add(&memory_progress_async, 1, __ATOMIC_SEQ_CST);
 }
 
 //
@@ -177,112 +163,146 @@ static void memory_intensive_async(void) {
 //
 
 static void test_io_heavy_go(void) {
-    printf("\n=== IO-Heavy Test: GO (pthread-based) ===\n");
-    printf("Running %u simulated downloads...\n", io_task_count);
+    printf("IO-Heavy GO (pthread-based): ");
+    fflush(stdout);
 
+    io_progress_go = 0;
     for (u32 i = 0; i < io_task_count; i++) {
         spawn(simulate_download_go);
     }
-    wait();
 
-    printf("All downloads completed!\n");
+    // Monitor progress
+    while (io_progress_go < io_task_count) {
+        tqdm(io_progress_go, io_task_count, NULL, "downloads");
+        usleep(50000); // 50ms updates
+    }
+    wait();
+    tqdm(io_task_count, io_task_count, NULL, "downloads");
 }
 
 static void test_io_heavy_async(void) {
-    printf("\n=== IO-Heavy Test: ASYNC (cooperative) ===\n");
-    printf("Running %u simulated downloads...\n", io_task_count);
+    printf("IO-Heavy ASYNC (cooperative): ");
+    fflush(stdout);
 
+    io_progress_async = 0;
     for (u32 i = 0; i < io_task_count; i++) {
         async_spawn(simulate_download_async);
     }
-    async_run_all();
 
-    printf("All downloads completed!\n");
+    async_run_all();
+    tqdm(io_task_count, io_task_count, NULL, "downloads");
 }
 
 static void test_compute_heavy_go(void) {
-    printf("\n=== Compute-Heavy Test: GO (pthread-based) ===\n");
-    printf("Finding primes up to %" PRIu64 " using %u workers...\n", prime_limit, compute_task_count);
+    printf("Compute-Heavy GO (pthread-based): ");
+    fflush(stdout);
 
+    compute_progress_go = 0;
     for (u32 i = 0; i < compute_task_count; i++) {
         spawn(count_primes_go);
     }
-    wait();
 
-    printf("Prime calculation completed!\n");
+    // Monitor progress
+    while (compute_progress_go < compute_task_count) {
+        tqdm(compute_progress_go, compute_task_count, NULL, "workers");
+        usleep(10000); // 10ms updates
+    }
+    wait();
+    tqdm(compute_task_count, compute_task_count, NULL, "workers");
 }
 
 static void test_compute_heavy_async(void) {
-    printf("\n=== Compute-Heavy Test: ASYNC (cooperative) ===\n");
-    printf("Finding primes up to %" PRIu64 " using %u workers...\n", prime_limit, compute_task_count);
+    printf("Compute-Heavy ASYNC (cooperative): ");
+    fflush(stdout);
 
+    compute_progress_async = 0;
     for (u32 i = 0; i < compute_task_count; i++) {
         async_spawn(count_primes_async);
     }
-    async_run_all();
 
-    printf("Prime calculation completed!\n");
+    async_run_all();
+    tqdm(compute_task_count, compute_task_count, NULL, "workers");
 }
 
 static void test_memory_heavy_go(void) {
-    printf("\n=== Memory-Intensive Test: GO (pthread-based) ===\n");
-    printf("Running %u memory allocation workers...\n", memory_task_count);
+    printf("Memory-Heavy GO (pthread-based): ");
+    fflush(stdout);
 
+    memory_progress_go = 0;
     for (u32 i = 0; i < memory_task_count; i++) {
         spawn(memory_intensive_go);
     }
-    wait();
 
-    printf("Memory processing completed!\n");
+    // Monitor progress
+    while (memory_progress_go < memory_task_count) {
+        tqdm(memory_progress_go, memory_task_count, NULL, "workers");
+        usleep(10000); // 10ms updates
+    }
+    wait();
+    tqdm(memory_task_count, memory_task_count, NULL, "workers");
 }
 
 static void test_memory_heavy_async(void) {
-    printf("\n=== Memory-Intensive Test: ASYNC (cooperative) ===\n");
-    printf("Running %u memory allocation workers...\n", memory_task_count);
+    printf("Memory-Heavy ASYNC (cooperative): ");
+    fflush(stdout);
 
+    memory_progress_async = 0;
     for (u32 i = 0; i < memory_task_count; i++) {
         async_spawn(memory_intensive_async);
     }
-    async_run_all();
 
-    printf("Memory processing completed!\n");
+    async_run_all();
+    tqdm(memory_task_count, memory_task_count, NULL, "workers");
 }
 
 int main(void) {
     printf("=== Parallelism Paradigm Comparison ===\n");
-    printf("This demo shows the strengths and weaknesses of different approaches:\n");
-    printf("• GO (pthread-based): True parallelism, good for CPU-bound and I/O-bound work\n");
-    printf("• ASYNC (cooperative): Single-threaded, excellent for I/O-bound, poor for CPU-bound\n\n");
+    printf("Comparing GO (pthread-based) vs ASYNC (cooperative) across different workloads\n\n");
 
-    benchmark("IO-Heavy GO", {
+    // IO-Heavy Tests
+    printf("=== IO-Heavy Tests (%u simulated downloads) ===\n", io_task_count);
+    f64 io_go_time = benchmark_silent({
         test_io_heavy_go();
     });
 
-    benchmark("IO-Heavy ASYNC", {
+    f64 io_async_time = benchmark_silent({
         test_io_heavy_async();
     });
 
-    benchmark("Compute-Heavy GO", {
+    // Compute-Heavy Tests
+    printf("\n=== Compute-Heavy Tests (primes up to %" PRIu64 ") ===\n", prime_limit);
+    f64 compute_go_time = benchmark_silent({
         test_compute_heavy_go();
     });
 
-    benchmark("Compute-Heavy ASYNC", {
+    f64 compute_async_time = benchmark_silent({
         test_compute_heavy_async();
     });
 
-    benchmark("Memory-Heavy GO", {
+    // Memory-Heavy Tests
+    printf("\n=== Memory-Heavy Tests (%u allocation workers) ===\n", memory_task_count);
+    f64 memory_go_time = benchmark_silent({
         test_memory_heavy_go();
     });
 
-    benchmark("Memory-Heavy ASYNC", {
+    f64 memory_async_time = benchmark_silent({
         test_memory_heavy_async();
     });
 
-    printf("\n=== Summary ===\n");
-    printf("Expected results:\n");
-    printf("• IO-Heavy: ASYNC should perform much better due to cooperative yielding\n");
-    printf("• Compute-Heavy: GO should perform better due to true parallelism\n");
-    printf("• Memory-Heavy: GO should perform better due to parallel memory access\n");
+    printf("IO-Heavy:     GO %.3fs vs ASYNC %.3fs (%.1fx %s)\n",
+           io_go_time, io_async_time,
+           io_async_time < io_go_time ? io_go_time/io_async_time : io_async_time/io_go_time,
+           io_async_time < io_go_time ? "faster ASYNC" : "faster GO");
+
+    printf("Compute-Heavy: GO %.3fs vs ASYNC %.3fs (%.1fx %s)\n",
+           compute_go_time, compute_async_time,
+           compute_go_time < compute_async_time ? compute_async_time/compute_go_time : compute_go_time/compute_async_time,
+           compute_go_time < compute_async_time ? "faster GO" : "faster ASYNC");
+
+    printf("Memory-Heavy:  GO %.3fs vs ASYNC %.3fs (%.1fx %s)\n",
+           memory_go_time, memory_async_time,
+           memory_go_time < memory_async_time ? memory_async_time/memory_go_time : memory_go_time/memory_async_time,
+           memory_go_time < memory_async_time ? "faster GO" : "faster ASYNC");
 
     return EXIT_SUCCESS;
 }
