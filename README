@@ -35,20 +35,14 @@ $ tail -n +10 src/demo_go.c
     }
 
     i32 main(void) {
-        srand((u32)time(NULL));
-
         u32 *results = malloc(4 * sizeof(u32));
-        defer({
-            free(results);
-            printf("cleaned up\n");
-        });
+        defer({ free(results); printf("cleaned up\n"); });
 
         go({ task(1); });
         go({ task(2); });
         go({ task(3); });
 
         wait();
-
         return EXIT_SUCCESS;
     }
 
