@@ -1,7 +1,7 @@
 import platform
 import subprocess
 import os
-from SCons.Script import ARGUMENTS, COMMAND_LINE_TARGETS, Environment, Exit
+from SCons.Script import ARGUMENTS, COMMAND_LINE_TARGETS, Environment, Exit, Glob
 
 env = Environment()
 env.Tool('compilation_db')
@@ -25,13 +25,10 @@ elif 'gcc' in version_output.lower():
 else:
     Exit("unsupported compiler")
 
-env.Append(CFLAGS=['-std=c23'])
+env.Append(CFLAGS=['-std=gnu11'])
+env.Append(LIBS=['pthread'])
 
-if 'valgrind' in COMMAND_LINE_TARGETS:
-    # valgrind mode: no optimization, no sanitizers
-    env.Append(CFLAGS=['-g', '-O0'])
-else:
-    # normal mode: optimization + multiple sanitizers
+if not 'valgrind' in COMMAND_LINE_TARGETS:
     env.Append(CFLAGS=['-g', '-O3'])
     env.Append(CFLAGS=['-fsanitize=address'])
     env.Append(LINKFLAGS=['-fsanitize=address'])
@@ -68,11 +65,12 @@ env.Append(CPPPATH=[unity_src])
 # source
 # 
 
-binary = env.Program('binary', 'src/main.c')
+binary = env.Program('sheaf', 'src/main.c')
 
+src_files = [f for f in Glob('src/*.c') if not str(f).endswith('main.c')]
 test_sources = Glob('tests/*.c')
 test_programs = [
-    env.Program(f'tests/{os.path.splitext(os.path.basename(str(tsrc)))[0]}', [tsrc] + [os.path.join(unity_src, 'unity.c')])
+    env.Program(f'tests/{os.path.splitext(os.path.basename(str(tsrc)))[0]}', [tsrc] + src_files + [os.path.join(unity_src, 'unity.c')])
     for tsrc in test_sources
 ]
 
@@ -84,7 +82,7 @@ test_programs = [
 if platform.system() == 'Darwin':
     leaks_run = env.Command('valgrind', binary, 'MallocStackLogging=1 leaks --atExit -- ./$SOURCE')
 if platform.system() == 'Linux':
-    valgrind_run = env.Command('valgrind', binary, 'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind.log $SOURCE')
+    valgrind_run = env.Command('valgrind', binary, 'valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes ./$SOURCE')
 
 # run
 run_binary = env.Command('run', binary, './$SOURCE')
@@ -92,8 +90,3 @@ run_binary = env.Command('run', binary, './$SOURCE')
 # test
 test_commands = [env.Command(f'run_{os.path.basename(str(p))}', p, './$SOURCE') for p in test_programs]
 env.Alias('test', test_commands)
-
-# fmt
-clang_format_path = subprocess.check_output(['which', 'clang-format'], universal_newlines=True).strip()
-fmt_command = env.Command('fmt', None, f'find . -name "*.c" -o -name "*.h" | xargs {clang_format_path} -i')
-env.AlwaysBuild(fmt_command)
