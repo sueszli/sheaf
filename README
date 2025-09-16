@@ -27,15 +27,7 @@ a minimal, zero-dependency, proof-of-concept library for task dispatching in c:
 # usage
 
 ```
-$ cat src/demo_go.c
-
-    #include "defer.h"
-    #include "go.h"
-    #include "types.h"
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <time.h>
-    #include <unistd.h>
+$ tail -n +10 src/demo_go.c
 
     static void task(u32 id) {
         usleep((u32)((rand() % 1000) * 1000));
@@ -67,12 +59,7 @@ $ make demo-go
     finished task 3
     cleaned up
 
-$ cat src/demo_async.c
-
-    #include "async.h"
-    #include "types.h"
-    #include <stdio.h>
-    #include <stdlib.h>
+$ tail -n +6 src/demo_async.c
 
     static void ping(void) {
         for (u8 i = 0; i < 2; i++) {
