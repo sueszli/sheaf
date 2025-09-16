@@ -5,15 +5,15 @@ build-image:
 	docker build -t sheaf .
 
 .PHONY: run # run the main program
-run:
+run: build-image
 	$(DOCKER_RUN) 'scons run && scons --clean -s'
 
 .PHONY: test # run all tests
-test:
+test: build-image
 	$(DOCKER_RUN) 'scons test && scons --clean -s'
 
 .PHONY: valgrind # run the main program under valgrind
-valgrind:
+valgrind: build-image
 	$(DOCKER_RUN) 'scons valgrind && scons --clean -s'
 
 .PHONY: fmt # format all source files

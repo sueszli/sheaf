@@ -22,9 +22,9 @@ static volatile u32 compute_progress_async = 0;
 static volatile u32 memory_progress_go = 0;
 static volatile u32 memory_progress_async = 0;
 
-// 
+//
 // io-bound task: simulate downloading a file
-// 
+//
 
 static void simulate_download_go(void) {
     usleep(100000);
@@ -42,9 +42,9 @@ static void simulate_download_async(void) {
     __atomic_fetch_add(&io_progress_async, 1, __ATOMIC_SEQ_CST);
 }
 
-// 
+//
 // compute-bound task: count primes up to a limit
-// 
+//
 
 static bool is_prime(u64 n) {
     if (n < 2)
@@ -97,9 +97,9 @@ static void count_primes_async(void) {
     __atomic_fetch_add(&compute_progress_async, 1, __ATOMIC_SEQ_CST);
 }
 
-// 
+//
 // memory-bound task: allocate and manipulate large arrays
-// 
+//
 
 static void memory_intensive_go(void) {
     u64 total_sum = 0;
@@ -151,9 +151,9 @@ static void memory_intensive_async(void) {
     __atomic_fetch_add(&memory_progress_async, 1, __ATOMIC_SEQ_CST);
 }
 
-// 
+//
 // runners
-// 
+//
 
 static void test_io_heavy_go(void) {
     io_progress_go = 0;
@@ -162,11 +162,11 @@ static void test_io_heavy_go(void) {
     }
 
     while (io_progress_go < io_task_count) {
-        tqdm(io_progress_go, io_task_count, NULL, "downloads");
+        tqdm(io_progress_go, io_task_count, "IO-Bound GO", "downloads");
         usleep(50000);
     }
     wait();
-    tqdm(io_task_count, io_task_count, NULL, "downloads");
+    tqdm(io_task_count, io_task_count, "IO-Bound GO", "downloads");
 }
 
 static void test_io_heavy_async(void) {
@@ -176,7 +176,7 @@ static void test_io_heavy_async(void) {
     }
 
     async_run_all();
-    tqdm(io_task_count, io_task_count, NULL, "downloads");
+    tqdm(io_task_count, io_task_count, "IO-Bound ASYNC", "downloads");
 }
 
 static void test_compute_heavy_go(void) {
@@ -186,11 +186,11 @@ static void test_compute_heavy_go(void) {
     }
 
     while (compute_progress_go < compute_task_count) {
-        tqdm(compute_progress_go, compute_task_count, NULL, "workers");
+        tqdm(compute_progress_go, compute_task_count, "Compute-Bound GO", "workers");
         usleep(10000);
     }
     wait();
-    tqdm(compute_task_count, compute_task_count, NULL, "workers");
+    tqdm(compute_task_count, compute_task_count, "Compute-Bound GO", "workers");
 }
 
 static void test_compute_heavy_async(void) {
@@ -200,7 +200,7 @@ static void test_compute_heavy_async(void) {
     }
 
     async_run_all();
-    tqdm(compute_task_count, compute_task_count, NULL, "workers");
+    tqdm(compute_task_count, compute_task_count, "Compute-Bound ASYNC", "workers");
 }
 
 static void test_memory_heavy_go(void) {
@@ -210,11 +210,11 @@ static void test_memory_heavy_go(void) {
     }
 
     while (memory_progress_go < memory_task_count) {
-        tqdm(memory_progress_go, memory_task_count, NULL, "workers");
+        tqdm(memory_progress_go, memory_task_count, "Memory-Bound GO", "workers");
         usleep(10000);
     }
     wait();
-    tqdm(memory_task_count, memory_task_count, NULL, "workers");
+    tqdm(memory_task_count, memory_task_count, "Memory-Bound GO", "workers");
 }
 
 static void test_memory_heavy_async(void) {
@@ -224,7 +224,7 @@ static void test_memory_heavy_async(void) {
     }
 
     async_run_all();
-    tqdm(memory_task_count, memory_task_count, NULL, "workers");
+    tqdm(memory_task_count, memory_task_count, "Memory-Bound ASYNC", "workers");
 }
 
 int main(void) {
