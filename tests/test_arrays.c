@@ -1,11 +1,9 @@
 #include "unity.h"
 #include <string.h>
 
-void setUp(void) {
-}
+void setUp(void) {}
 
-void tearDown(void) {
-}
+void tearDown(void) {}
 
 void test_array_initialization(void) {
     int arr[5] = {1, 2, 3, 4, 5};

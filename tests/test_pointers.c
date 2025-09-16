@@ -1,11 +1,9 @@
 #include "unity.h"
 #include <stdlib.h>
 
-void setUp(void) {
-}
+void setUp(void) {}
 
-void tearDown(void) {
-}
+void tearDown(void) {}
 
 void test_pointer_basics(void) {
     int value = 42;
