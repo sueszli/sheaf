@@ -9,6 +9,7 @@ env.CompilationDatabase()
 
 # 
 # compiler hardening
+# (flags are non exhaustive - need to find a good source)
 #
 
 if 'CC' not in env:
