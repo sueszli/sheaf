@@ -7,11 +7,6 @@ env = Environment()
 env.Tool('compilation_db')
 env.CompilationDatabase()
 
-# 
-# compiler hardening
-# (flags are non exhaustive - need to find a good source)
-#
-
 if 'CC' not in env:
     detected_cc = env.Detect(['clang', 'gcc'])
     if not detected_cc:
@@ -29,6 +24,9 @@ else:
 env.Append(CFLAGS=['-std=gnu11'])
 env.Append(LIBS=['pthread'])
 
+# note:
+# these compiler hardening flags aren't exhaustive and not well-researched
+# they just serve as a basic starting point
 if not 'valgrind' in COMMAND_LINE_TARGETS:
     env.Append(CFLAGS=['-g', '-O3'])
     env.Append(CFLAGS=['-fsanitize=address'])
