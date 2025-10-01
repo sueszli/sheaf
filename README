@@ -22,7 +22,6 @@ a minimal, zero-dependency, proof-of-concept library for task dispatching in c:
 
 - pthreads for compute-heavy tasks, inspired by goroutines
 - cooperative async for io-heavy tasks, inspired by the javascript event loop
-- a minimal, gcc based (cleanup attribute) defer statement for RAII
 
 # usage
 
